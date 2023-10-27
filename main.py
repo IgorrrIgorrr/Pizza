@@ -7,9 +7,12 @@ from typing import List
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated
 from typing import Union
-
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, select, insert, delete
 
+
+SECRET_KEY = "b3ee86aeb59bcaf62a3f9626a5d0c0055a7dc5d29fd25195ff6af6710a51de63"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 app = FastAPI(title="Pizza APP", description="App service for pizzerias")
 

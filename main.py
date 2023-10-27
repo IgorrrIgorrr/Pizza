@@ -1,4 +1,8 @@
-from fastapi import FastAPI, Query, Depends
+from datetime import datetime, timedelta
+from fastapi import FastAPI, Query, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from passlib.context import CryptContext
+from jose import JWTError, jwt
 from typing import List
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated
@@ -13,6 +17,19 @@ app = FastAPI(title="Pizza APP", description="App service for pizzerias")
 engine = create_engine("sqlite:///./pizzeria_DB.db")
 
 metadata = MetaData()
+
+
+user_table = Table(
+    "users",
+    metadata,
+    Column("id", Integer, autoincrement=True, unique=True),
+    Column("name", String),
+    Column("full_name", String),
+    Column("address", String),
+    Column("telephone_number", String),
+    Column("email", String),
+    Column("hashed_password", String),
+)
 
 ingred_table = Table(
     "ingred",
@@ -30,7 +47,7 @@ base_pizzas_table = Table(
     Column("price", Integer),
 )
 
-metadata.drop_all(engine)
+metadata.drop_all(engine)           # Чтобы при каждом изменении в моделях таблиц они пересоздавались...
 metadata.create_all(engine)
 
 stmt_ingr = insert(ingred_table)
@@ -38,8 +55,8 @@ stmt_pizz = insert(base_pizzas_table)
 
 with engine.begin() as conn:
 
-    del_stmt1 = delete(ingred_table)
-    del_stmt2 = delete(base_pizzas_table)
+    del_stmt1 = delete(ingred_table)        # Чтобы при каждом перезапуске приложения при отладке не заполнялись таблицы по второму разу я их пока что решил чистить...
+    del_stmt2 = delete(base_pizzas_table)       # Чтобы при каждом перезапуске приложения при отладке не заполнялись таблицы по второму разу я их пока что решил чистить...
     conn.execute(del_stmt1)
     conn.execute(del_stmt2)
 
@@ -101,9 +118,16 @@ def suum(ingredients: Annotated[PizzaConstr, Depends(PizzaConstr)]):
 def get_suum(number: Annotated[int, Depends(suum)]):
     return {"price of cunstructed pizza": number}
 
+
 @app.get("/ready", tags=["Choose pizza"])
 def get_base_pizza(choice: str):
     with engine.begin() as conn:
         res = conn.execute(select(base_pizzas_table.c.price).where(base_pizzas_table.c.name == choice))
         a =  res.scalar()
     return {"price of base pizza": a}
+
+
+@app.get("/", tags=["Starting page"])
+def greeting():
+    return {"greeting": "Hello our dear customer!!!"}
+

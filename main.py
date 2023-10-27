@@ -7,7 +7,7 @@ from typing import Union
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, select, insert, delete
 
 
-app = FastAPI( title="Pizza APP", description="App service for pizzerias")
+app = FastAPI(title="Pizza APP", description="App service for pizzerias")
 
 
 engine = create_engine("sqlite:///./pizzeria_DB.db")
@@ -97,7 +97,13 @@ def suum(ingredients: Annotated[PizzaConstr, Depends(PizzaConstr)]):
         return a
 
 
-@app.post("/construct")
+@app.post("/construct", tags=["Choose pizza"])
 def get_suum(number: Annotated[int, Depends(suum)]):
-    return number
+    return {"price of cunstructed pizza": number}
 
+@app.get("/ready", tags=["Choose pizza"])
+def get_base_pizza(choice: str):
+    with engine.begin() as conn:
+        res = conn.execute(select(base_pizzas_table.c.price).where(base_pizzas_table.c.name == choice))
+        a =  res.scalar()
+    return {"price of base pizza": a}

@@ -100,6 +100,29 @@ class PizzaConstr(BaseModel):
     size: Union[str, None] = Field(default=None, description="type 'small', 'normal' or 'big'", examples=["big", "normal", "small"])
 
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    username: str
+
+
+class User(BaseModel):
+    id: Union[int, None] = None
+    name: str
+    full_name: str
+    address: str
+    telephone_number: str
+    email: Union[str, None] = None
+
+
+class UserInDB(User):
+    hashed_password: str
+
+
+
 def suum(ingredients: Annotated[PizzaConstr, Depends(PizzaConstr)]):
     with engine.begin() as conn:
         a = 0

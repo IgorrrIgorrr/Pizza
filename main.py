@@ -15,10 +15,9 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 app = FastAPI(title="Pizza APP", description="App service for pizzerias")
-
-
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 engine = create_engine("sqlite:///./pizzeria_DB.db")
-
 metadata = MetaData()
 
 
@@ -55,15 +54,18 @@ metadata.create_all(engine)
 
 stmt_ingr = insert(ingred_table)
 stmt_pizz = insert(base_pizzas_table)
+stmt_user = insert(user_table)
 
 with engine.begin() as conn:
 
     del_stmt1 = delete(ingred_table)        # Чтобы при каждом перезапуске приложения при отладке не заполнялись таблицы по второму разу я их пока что решил чистить...
     del_stmt2 = delete(base_pizzas_table)       # Чтобы при каждом перезапуске приложения при отладке не заполнялись таблицы по второму разу я их пока что решил чистить...
+    del_stmt3 = delete(user_table)
     conn.execute(del_stmt1)
     conn.execute(del_stmt2)
+    conn.execute(del_stmt3)
 
-    a =  conn.execute(select(ingred_table))
+    a = conn.execute(select(ingred_table))
     if not a.all():
         ing = conn.execute(stmt_ingr,
                            [
@@ -89,6 +91,13 @@ with engine.begin() as conn:
                                 {"name": "For seasons", "price": 1650},
                             ])
 
+    c = conn.execute(select(user_table))
+    if not c.all():
+        use = conn.execute(stmt_user,
+                           [
+                               {"id": 123, "name": "TestName", "full_name": "TestFullName", "address": "Test address", "telephone_number": 8984984984, "email":"TestEmail", "hashed_password":"TestHashedPassw"}
+                           ])
+
 
 class PizzaConstr(BaseModel):
     cheese: Union[int, None] = None
@@ -97,7 +106,8 @@ class PizzaConstr(BaseModel):
     onion: Union[int, None] = None
     green: Union[int, None] = None
     sausage: Union[int, None] = None
-    size: Union[str, None] = Field(default=None, description="type 'small', 'normal' or 'big'", examples=["big", "normal", "small"])
+    size: Union[str, None] = Field(default=None, description="type 'small', 'normal' or 'big'",
+                                   examples=["big", "normal", "small"])
 
 
 class Token(BaseModel):
@@ -156,4 +166,42 @@ def get_base_pizza(choice: str):
 @app.get("/", tags=["Starting page"])
 def greeting():
     return {"greeting": "Hello our dear customer!!!"}
+
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+
+def get_user(fullname: str):
+    with engine.connect() as conn:
+        a = conn.execute(select(user_table).where(user_table.c.full_name == fullname))
+        print(fullname)
+        if a.all():
+            print(a.mappings().all())
+            print("----------------------------------------------------")
+            print("a", a.fetchmany())
+            print()
+            print("KEYS!!!!", a.keys())
+            print()
+            print("MAPPINGS!!!", a.mappings().all())
+            print()
+            print("SCALAR!!!", a.scalar())
+            print("----------------------------------------------------")
+            return a.all()
+        else:
+            return {"answer": "no such user"}
+
+@app.get("/test")
+def a(fullname:str, b = Depends(get_user)):
+    return b
+
+
+
+
+
+
 

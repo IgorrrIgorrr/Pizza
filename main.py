@@ -17,7 +17,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 app = FastAPI(title="Pizza APP", description="App service for pizzerias")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-engine = create_engine("sqlite:///./pizzeria_DB.db")
+engine = create_engine("sqlite:///./pizzeria_DB.db", echo=True)
 metadata = MetaData()
 
 
@@ -176,28 +176,25 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def get_user(fullname: str):
+def get_user(fullname: str): #добавлю как-нибудь ошибку при непавльном вводе...
     with engine.connect() as conn:
         a = conn.execute(select(user_table).where(user_table.c.full_name == fullname))
-        print(fullname)
-        if a.all():
-            print(a.mappings().all())
-            print("----------------------------------------------------")
-            print("a", a.fetchmany())
-            print()
-            print("KEYS!!!!", a.keys())
-            print()
-            print("MAPPINGS!!!", a.mappings().all())
-            print()
-            print("SCALAR!!!", a.scalar())
-            print("----------------------------------------------------")
-            return a.all()
-        else:
-            return {"answer": "no such user"}
+        return UserInDB(**a.mappings().fetchone())
+        # else:
+        #     return {"answer": "no such user"}
 
 @app.get("/test")
-def a(fullname:str, b = Depends(get_user)):
+def a(fullname: str, b = Depends(get_user)):
     return b
+
+def authenticate_user(fullname: str, password: str, a = Depends(get_user), b = Depends(verify_password)):
+    user = a
+    if not a:
+        return False
+    if not b:
+        return False
+    return user
+
 
 
 

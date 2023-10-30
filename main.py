@@ -25,7 +25,7 @@ user_table = Table(
     "users",
     metadata,
     Column("id", Integer, autoincrement=True, unique=True),
-    Column("name", String),
+    Column("username", String),
     Column("full_name", String),
     Column("address", String),
     Column("telephone_number", String),
@@ -95,7 +95,7 @@ with engine.begin() as conn:
     if not c.all():
         use = conn.execute(stmt_user,
                            [
-                               {"id": 123, "name": "TestName", "full_name": "TestFullName", "address": "Test address", "telephone_number": 8984984984, "email":"TestEmail", "hashed_password":"TestHashedPassw"}
+                               {"id": 123, "username": "TestName", "full_name": "TestFullName", "address": "Test address", "telephone_number": 8984984984, "email":"TestEmail", "hashed_password":"TestHashedPassw"}
                            ])
 
 
@@ -121,7 +121,7 @@ class TokenData(BaseModel):
 
 class User(BaseModel):
     id: Union[int, None] = None
-    name: str
+    username: str
     full_name: str
     address: str
     telephone_number: str
@@ -150,6 +150,95 @@ def suum(ingredients: Annotated[PizzaConstr, Depends(PizzaConstr)]):
         return a
 
 
+
+
+
+def verify_password(plain_password, hashed_password):           #ГОТОВО
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+
+def get_user(username: str): #добавлю как-нибудь ошибку при непавльном вводе...         #ГОТОВО
+    with engine.connect() as conn:
+        a = conn.execute(select(user_table).where(user_table.c.username == username))
+        return UserInDB(**a.mappings().fetchone())
+
+
+def authenticate_user(username: str, password: str):            #ГОТОВО
+    user = get_user(username)
+    if not user:
+        return False
+    if not verify_password(password, user.hashed_password):
+        return False
+    return user
+
+
+def create_access_token(data: dict, expires_delta: Union[timedelta, None]):         #ГОТОВО
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        token_data = TokenData(username=username)
+    except JWTError:
+        raise credentials_exception
+    user = get_user(fake_users_db, username=token_data.username)
+    if user is None:
+        raise credentials_exception
+    return user
+
+
+async def get_current_active_user(
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    if current_user.disabled:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+
+
+@app.get("/test")
+def a(fullname: str, b = Depends(authenticate_user)):
+    return b
+
+
+@app.post("token", response_model= Token)           #ГОТОВО
+async def login_for_access_token(
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+):
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
 @app.post("/construct", tags=["Choose pizza"])
 def get_suum(number: Annotated[int, Depends(suum)]):
     return {"price of cunstructed pizza": number}
@@ -166,35 +255,6 @@ def get_base_pizza(choice: str):
 @app.get("/", tags=["Starting page"])
 def greeting():
     return {"greeting": "Hello our dear customer!!!"}
-
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-
-def get_user(fullname: str): #добавлю как-нибудь ошибку при непавльном вводе...
-    with engine.connect() as conn:
-        a = conn.execute(select(user_table).where(user_table.c.full_name == fullname))
-        return UserInDB(**a.mappings().fetchone())
-        # else:
-        #     return {"answer": "no such user"}
-
-@app.get("/test")
-def a(fullname: str, b = Depends(get_user)):
-    return b
-
-def authenticate_user(fullname: str, password: str, a = Depends(get_user), b = Depends(verify_password)):
-    user = a
-    if not a:
-        return False
-    if not b:
-        return False
-    return user
-
 
 
 

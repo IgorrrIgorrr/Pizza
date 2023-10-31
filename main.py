@@ -48,7 +48,7 @@ base_pizzas_table = Table(
     Column("price", Integer),
 )
 
-metadata.drop_all(engine)           # Чтобы при каждом изменении в моделях таблиц они пересоздавались...
+# metadata.drop_all(engine)           # Чтобы при каждом изменении в моделях таблиц они пересоздавались...
 metadata.create_all(engine)
 
 stmt_ingr = insert(ingred_table)
@@ -59,10 +59,10 @@ with engine.begin() as conn:
 
     del_stmt1 = delete(ingred_table)        # Чтобы при каждом перезапуске приложения при отладке не заполнялись таблицы по второму разу я их пока что решил чистить...
     del_stmt2 = delete(base_pizzas_table)       # Чтобы при каждом перезапуске приложения при отладке не заполнялись таблицы по второму разу я их пока что решил чистить...
-    del_stmt3 = delete(user_table)
+    # del_stmt3 = delete(user_table)
     conn.execute(del_stmt1)
     conn.execute(del_stmt2)
-    conn.execute(del_stmt3)
+    # conn.execute(del_stmt3)
 
     a = conn.execute(select(ingred_table))
     if not a.all():
@@ -161,9 +161,11 @@ def get_password_hash(password):
 
 
 def get_user(username: str): #добавлю как-нибудь ошибку при непавльном вводе...         #ГОТОВО
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         a = conn.execute(select(user_table).where(user_table.c.username == username))
-        return UserInDB(**a.mappings().fetchone())
+        b = a.one()
+        return UserInDB(username = b[1], full_name= b[2], address= b[3], telephone_number= b[4], email=b[5], hashed_password=b[6])
+
 
 
 def authenticate_user(username: str, password: str):            #ГОТОВО

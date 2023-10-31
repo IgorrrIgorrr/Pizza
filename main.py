@@ -3,7 +3,6 @@ from fastapi import FastAPI, Query, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from jose import JWTError, jwt
-from typing import List
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated
 from typing import Union
@@ -169,6 +168,7 @@ def get_user(username: str): #добавлю как-нибудь ошибку п
 
 def authenticate_user(username: str, password: str):            #ГОТОВО
     user = get_user(username)
+    print(user.hashed_password)
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -265,7 +265,7 @@ def greeting():
 
 
 
-@app.get("/registration")
+@app.post("/registration")
 def registration(username: Annotated[str, Form()], full_name: Annotated[str, Form()], address: Annotated[str, Form()], telephone_number: Annotated[int, Form()], email:Annotated[str, Form()], plain_password:Annotated[str, Form()]):
     hashed_password = get_password_hash(plain_password)
     stmt_user = insert(user_table)
@@ -275,7 +275,7 @@ def registration(username: Annotated[str, Form()], full_name: Annotated[str, For
                                {"username": username, "full_name": full_name, "address": address,
                                 "telephone_number": telephone_number, "email": email, "hashed_password": hashed_password},
                            ])
-
+        return{"response": "new user successfully created"}
 
 
 

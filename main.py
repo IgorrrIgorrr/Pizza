@@ -221,7 +221,7 @@ def a(fullname: str, b = Depends(authenticate_user)):
     return b
 
 
-@app.post("token", response_model= Token)           #ГОТОВО
+@app.post("/token", response_model= Token)           #ГОТОВО
 async def login_for_access_token(
             form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ):

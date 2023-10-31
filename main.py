@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Query, Depends, HTTPException, status
+from fastapi import FastAPI, Query, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from jose import JWTError, jwt
@@ -187,7 +187,7 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None]):     
     return encoded_jwt
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):          #ГОТОВО
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -201,18 +201,18 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
-    user = get_user(fake_users_db, username=token_data.username)
+    user = get_user(username=token_data.username)
     if user is None:
         raise credentials_exception
     return user
 
 
-async def get_current_active_user(
-    current_user: Annotated[User, Depends(get_current_user)]
-):
-    if current_user.disabled:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
+# async def get_current_active_user(
+#     current_user: Annotated[User, Depends(get_current_user)]
+# ):
+#     if current_user.disabled:
+#         raise HTTPException(status_code=400, detail="Inactive user")
+#     return current_user
 
 
 
@@ -223,7 +223,7 @@ def a(fullname: str, b = Depends(authenticate_user)):
 
 @app.post("token", response_model= Token)           #ГОТОВО
 async def login_for_access_token(
-        form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+            form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ):
     user = authenticate_user(form_data.username, form_data.password)
     if not user:
@@ -237,6 +237,13 @@ async def login_for_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/users/me/", response_model=User)         #ГОТОВО
+async def read_users_me(
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    return current_user
 
 
 @app.post("/construct", tags=["Choose pizza"])
@@ -258,6 +265,16 @@ def greeting():
 
 
 
+@app.get("/registration")
+def registration(username: Annotated[str, Form()], full_name: Annotated[str, Form()], address: Annotated[str, Form()], telephone_number: Annotated[int, Form()], email:Annotated[str, Form()], plain_password:Annotated[str, Form()]):
+    hashed_password = get_password_hash(plain_password)
+    stmt_user = insert(user_table)
+    with engine.begin() as conn:
+        use = conn.execute(stmt_user,
+                           [
+                               {"username": username, "full_name": full_name, "address": address,
+                                "telephone_number": telephone_number, "email": email, "hashed_password": hashed_password},
+                           ])
 
 
 

@@ -23,7 +23,7 @@ metadata = MetaData()
 user_table = Table(
     "users",
     metadata,
-    Column("id", Integer, autoincrement=True, unique=True),
+    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
     Column("username", String),
     Column("full_name", String),
     Column("address", String),
@@ -35,7 +35,7 @@ user_table = Table(
 ingred_table = Table(
     "ingred",
     metadata,
-    Column("id", Integer, autoincrement=True, unique=True),
+    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
     Column("ingredient", String),
     Column("price_gr", Integer),
 )
@@ -43,7 +43,7 @@ ingred_table = Table(
 base_pizzas_table = Table(
     "base_pizzas",
     metadata,
-    Column("id", Integer, autoincrement=True, unique=True),
+    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
     Column("name", String),
     Column("price", Integer),
 )
@@ -90,12 +90,12 @@ with engine.begin() as conn:
                                 {"name": "For seasons", "price": 1650},
                             ])
 
-    c = conn.execute(select(user_table))
-    if not c.all():
-        use = conn.execute(stmt_user,
-                           [
-                               {"id": 123, "username": "TestName", "full_name": "TestFullName", "address": "Test address", "telephone_number": 8984984984, "email":"TestEmail", "hashed_password":"TestHashedPassw"}
-                           ])
+    # c = conn.execute(select(user_table))
+    # if not c.all():
+    #     use = conn.execute(stmt_user,
+    #                        [
+    #                            {"username": "utest", "full_name": "ftest", "address": "atest", "telephone_number": 1, "email":"etest", "hashed_password":"TestHashedPassw"}
+    #                        ])
 
 
 class PizzaConstr(BaseModel):

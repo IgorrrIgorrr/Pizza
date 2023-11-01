@@ -167,6 +167,15 @@ def get_user(username: str): #добавлю как-нибудь ошибку п
         return UserInDB(username = b[1], full_name= b[2], address= b[3], telephone_number= b[4], email=b[5], hashed_password=b[6])
 
 
+def check_for_username_existence(username: str):
+    with engine.begin() as conn:
+        a = conn.execute(select(user_table).where(user_table.c.username == username))
+        if a.one():
+            return True
+        else:
+            return False
+
+
 
 def authenticate_user(username: str, password: str):            #ГОТОВО
     user = get_user(username)
@@ -267,17 +276,18 @@ def greeting():
 
 
 
-@app.post("/registration")
+@app.post("/registration") #    ДОБАВИТЬ ОШИБКУ, ЕСЛИ ЕСТЬ УЖЕ ТАКОЙ ПОЛЬЗОВАТЕЛЬ!!!!
 def registration(username: Annotated[str, Form()], full_name: Annotated[str, Form()], address: Annotated[str, Form()], telephone_number: Annotated[int, Form()], email:Annotated[str, Form()], plain_password:Annotated[str, Form()]):
-    hashed_password = get_password_hash(plain_password)
-    stmt_user = insert(user_table)
-    with engine.begin() as conn:
-        use = conn.execute(stmt_user,
-                           [
-                               {"username": username, "full_name": full_name, "address": address,
-                                "telephone_number": telephone_number, "email": email, "hashed_password": hashed_password},
-                           ])
-        return{"response": "new user successfully created"}
+    if not check_for_username_existence(username):
+        hashed_password = get_password_hash(plain_password)
+        stmt_user = insert(user_table)
+        with engine.begin() as conn:
+            use = conn.execute(stmt_user,
+                               [
+                                   {"username": username, "full_name": full_name, "address": address,
+                                    "telephone_number": telephone_number, "email": email, "hashed_password": hashed_password},
+                               ])
+            return{"response": "new user successfully created"}
 
 
 

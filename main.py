@@ -20,6 +20,15 @@ engine = create_engine("sqlite:///./pizzeria_DB.db", echo=True)
 metadata = MetaData()
 
 
+cart = Table(
+    "cart_for_pizzas",
+    metadata,
+    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
+    Column("purchase", String)
+    Column( ),
+)
+
+
 user_table = Table(
     "users",
     metadata,

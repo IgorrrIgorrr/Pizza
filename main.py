@@ -8,7 +8,7 @@ from typing_extensions import Annotated
 from typing import Union
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, select, insert, delete, ForeignKey
 
-
+# todo put every theme to different files schemas, models...
 SECRET_KEY = "b3ee86aeb59bcaf62a3f9626a5d0c0055a7dc5d29fd25195ff6af6710a51de63"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -24,22 +24,6 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-cart_table = Table(
-    "cart_for_pizzas",
-    metadata,
-    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
-    Column("user_id", ForeignKey("users.id")), # TODO MAKE ONE TO MANY
-    Column("receipt", String),
-    Column("summ", Integer),
-)
-
-recript_table = Table(
-    "receipt",
-    metadata,
-    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
-
-)
-
 user_table = Table(
     "users",
     metadata,
@@ -52,13 +36,6 @@ user_table = Table(
     Column("hashed_password", String),
 )
 
-ingred_table = Table(
-    "ingred",
-    metadata,
-    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
-    Column("ingredient", String),
-    Column("price_gr", Integer),
-)
 
 base_pizzas_table = Table(
     "base_pizzas",
@@ -67,6 +44,51 @@ base_pizzas_table = Table(
     Column("name", String),
     Column("price", Integer),
 )
+
+
+ingred_table = Table(
+    "ingred",
+    metadata,
+    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
+    Column("ingredient", String),
+    Column("price_gr", Integer),
+)
+
+
+cart_table = Table(
+    "cart_for_pizzas",
+    metadata,
+    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
+    Column("user_id", ForeignKey("users.id")), # TODO MAKE ONE TO MANY
+    Column("receipt", Integer, ForeignKey("receipt.id")),
+    Column("summ", Integer),
+)
+
+
+receipt_table = Table(
+    "receipt",
+    metadata,
+    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
+    Column("ingredient", String), # todo or list
+    Column("price", Integer),
+)
+
+orders_table = Table(
+    "orders",
+    metadata,
+    Column("id", Inreger, autoincrement=True, unique=True, primary_key=True),
+    Column("users_id", Integer, ForeignKey("users.id")),
+    Column("state", String),
+)
+
+orders_detail_table = Table(
+    "orders_detail",
+    metadata,
+    Column("id", autoincrement=True, unique=True, primary_key=True),
+    Column("orders_id", Integer, ForeignKey("orders.id")),
+    Column("receipt_id", Integer, ForeignKey("receipt.id")),
+)
+
 
 # metadata.drop_all(engine)           # Чтобы при каждом изменении в моделях таблиц они пересоздавались...
 metadata.create_all(engine)

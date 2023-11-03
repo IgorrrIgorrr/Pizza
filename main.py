@@ -3,10 +3,16 @@ from fastapi import FastAPI, Query, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from jose import JWTError, jwt
-from pydantic import BaseModel, Field
+
 from typing_extensions import Annotated
 from typing import Union
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, select, insert, delete, ForeignKey
+
+import schemas #todo why "from . import dont work"
+import sys
+
+print(sys.path)
+
 
 # todo put every theme to different files schemas, models...
 SECRET_KEY = "b3ee86aeb59bcaf62a3f9626a5d0c0055a7dc5d29fd25195ff6af6710a51de63"
@@ -18,6 +24,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 engine = create_engine("sqlite:///./pizzeria_DB.db", echo=True)
 metadata = MetaData()
+
 
 
 def get_password_hash(password):
@@ -76,7 +83,7 @@ receipt_table = Table(
 orders_table = Table(
     "orders",
     metadata,
-    Column("id", Inreger, autoincrement=True, unique=True, primary_key=True),
+    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
     Column("users_id", Integer, ForeignKey("users.id")),
     Column("state", String),
 )
@@ -84,7 +91,7 @@ orders_table = Table(
 orders_detail_table = Table(
     "orders_detail",
     metadata,
-    Column("id", autoincrement=True, unique=True, primary_key=True),
+    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
     Column("orders_id", Integer, ForeignKey("orders.id")),
     Column("receipt_id", Integer, ForeignKey("receipt.id")),
 )
@@ -142,41 +149,11 @@ with engine.begin() as conn:
                            ])
 
 
-class PizzaConstr(BaseModel):
-    cheese: Union[int, None] = None
-    tomato: Union[int, None] = None
-    olives: Union[int, None] = None
-    onion: Union[int, None] = None
-    green: Union[int, None] = None
-    sausage: Union[int, None] = None
-    size: Union[str, None] = Field(default=None, description="type 'small', 'normal' or 'big'",
-                                   examples=["big", "normal", "small"]) # todo make default (medium)
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    username: str
-
-
-class User(BaseModel):
-    id: Union[int, None] = None
-    username: str
-    full_name: str
-    address: str
-    telephone_number: str
-    email: Union[str, None] = None
-
-
-class UserInDB(User):
-    hashed_password: str
 
 
 
-def suum(ingredients: Annotated[PizzaConstr, Depends(PizzaConstr)]):
+
+def suum(ingredients: Annotated[schemas.PizzaConstr, Depends(schemas.PizzaConstr)]):
     with engine.begin() as conn:
         a = 0
         for k, v in ingredients.model_dump(exclude_defaults=True).items():
@@ -207,7 +184,7 @@ def get_user(username: str): #добавлю как-нибудь ошибку п
     with engine.begin() as conn:
         a = conn.execute(select(user_table).where(user_table.c.username == username))
         b = a.one() # todo correct mapping
-        return UserInDB(username = b[1], full_name= b[2], address= b[3], telephone_number= b[4], email=b[5], hashed_password=b[6])
+        return schemas.UserInDB(username = b[1], full_name= b[2], address= b[3], telephone_number= b[4], email=b[5], hashed_password=b[6])
 
 
 def check_for_username_existence(username: str):
@@ -252,7 +229,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):      
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        token_data = schemas.TokenData(username=username)
     except JWTError:
         raise credentials_exception
     user = get_user(username=token_data.username)
@@ -275,7 +252,7 @@ def a(fullname: str, b = Depends(authenticate_user)):
     return b
 
 
-@app.post("/token", response_model= Token)           #ГОТОВО
+@app.post("/token", response_model= schemas.Token)           #ГОТОВО
 async def login_for_access_token(
             form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ):
@@ -293,15 +270,15 @@ async def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.get("/users/me/", response_model=User)         #ГОТОВО
+@app.get("/users/me/", response_model=schemas.User)         #ГОТОВО
 async def read_users_me(
-    current_user: Annotated[User, Depends(get_current_user)]
+    current_user: Annotated[schemas.User, Depends(get_current_user)]
 ):
     return current_user
 
 
 @app.post("/construct", tags=["Choose pizza"])
-def get_suum(number: Annotated[int, Depends(suum)], z: Annotated[ UserInDB, Depends(read_users_me)]):
+def get_suum(number: Annotated[int, Depends(suum)], z: Annotated[schemas.UserInDB, Depends(read_users_me)]):
     # x = read_users_me()
     # print("*************", type(z))
     # print("*************", z.username)

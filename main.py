@@ -6,7 +6,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated
 from typing import Union
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, select, insert, delete
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, select, insert, delete, ForeignKey
 
 
 SECRET_KEY = "b3ee86aeb59bcaf62a3f9626a5d0c0055a7dc5d29fd25195ff6af6710a51de63"
@@ -20,19 +20,30 @@ engine = create_engine("sqlite:///./pizzeria_DB.db", echo=True)
 metadata = MetaData()
 
 
-cart = Table(
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+
+cart_table = Table(
     "cart_for_pizzas",
     metadata,
     Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
-    Column("purchase", String)
-    Column( ),
+    Column("user_id", ForeignKey("users.id")), # TODO MAKE ONE TO MANY
+    Column("receipt", String),
+    Column("summ", Integer),
 )
 
+recript_table = Table(
+    "receipt",
+    metadata,
+    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
+
+)
 
 user_table = Table(
     "users",
     metadata,
-    Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
+    Column("id", Integer, autoincrement=True, primary_key=True),
     Column("username", String),
     Column("full_name", String),
     Column("address", String),
@@ -69,9 +80,11 @@ with engine.begin() as conn:
     del_stmt1 = delete(ingred_table)        # Чтобы при каждом перезапуске приложения при отладке не заполнялись таблицы по второму разу я их пока что решил чистить...
     del_stmt2 = delete(base_pizzas_table)       # Чтобы при каждом перезапуске приложения при отладке не заполнялись таблицы по второму разу я их пока что решил чистить...
     # del_stmt3 = delete(user_table)
+    del_stmt4 = delete(cart_table)
     conn.execute(del_stmt1)
     conn.execute(del_stmt2)
     # conn.execute(del_stmt3)
+    conn.execute(del_stmt4)
 
     a = conn.execute(select(ingred_table))
     if not a.all():
@@ -83,7 +96,7 @@ with engine.begin() as conn:
                                {"ingredient": "onion", "price_gr": 80},
                                {"ingredient": "green", "price_gr": 90},
                                {"ingredient": "sausage", "price_gr": 200},
-                               {"ingredient": "small", "price_gr": 1000},
+                               {"ingredient": "small", "price_gr": 1000}, # todo remove sizes from ingredient table (it's just a workaround)
                                {"ingredient": "normal", "price_gr": 1500},
                                {"ingredient": "big", "price_gr": 2000},
                            ])
@@ -99,12 +112,12 @@ with engine.begin() as conn:
                                 {"name": "For seasons", "price": 1650},
                             ])
 
-    # c = conn.execute(select(user_table))
-    # if not c.all():
-    #     use = conn.execute(stmt_user,
-    #                        [
-    #                            {"username": "utest", "full_name": "ftest", "address": "atest", "telephone_number": 1, "email":"etest", "hashed_password":"TestHashedPassw"}
-    #                        ])
+    c = conn.execute(select(user_table))
+    if not c.all():
+        use = conn.execute(stmt_user,
+                           [
+                               {"username": "utest", "full_name": "ftest", "address": "atest", "telephone_number": 1, "email":"etest", "hashed_password": get_password_hash("ptest")}
+                           ])
 
 
 class PizzaConstr(BaseModel):
@@ -115,7 +128,7 @@ class PizzaConstr(BaseModel):
     green: Union[int, None] = None
     sausage: Union[int, None] = None
     size: Union[str, None] = Field(default=None, description="type 'small', 'normal' or 'big'",
-                                   examples=["big", "normal", "small"])
+                                   examples=["big", "normal", "small"]) # todo make default (medium)
 
 
 class Token(BaseModel):
@@ -165,14 +178,13 @@ def verify_password(plain_password, hashed_password):           #ГОТОВО
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def get_password_hash(password):
-    return pwd_context.hash(password)
+
 
 
 def get_user(username: str): #добавлю как-нибудь ошибку при непавльном вводе...         #ГОТОВО
     with engine.begin() as conn:
         a = conn.execute(select(user_table).where(user_table.c.username == username))
-        b = a.one()
+        b = a.one() # todo correct mapping
         return UserInDB(username = b[1], full_name= b[2], address= b[3], telephone_number= b[4], email=b[5], hashed_password=b[6])
 
 
@@ -267,15 +279,25 @@ async def read_users_me(
 
 
 @app.post("/construct", tags=["Choose pizza"])
-def get_suum(number: Annotated[int, Depends(suum)]):
+def get_suum(number: Annotated[int, Depends(suum)], z: Annotated[ UserInDB, Depends(read_users_me)]):
+    # x = read_users_me()
+    # print("*************", type(z))
+    # print("*************", z.username)
+    c = z.username
+    # print("*********", type(c), c)
+    with engine.begin() as conn:
+        b = conn.execute(select(user_table.c.id).where(user_table.c.username == c))
+        # print("**********", b.scalar())
+        a = conn.execute(insert(cart_table).values(user_id = int(b.scalar()), purchase = "selfmade pizza", summ = number))
     return {"price of cunstructed pizza": number}
 
 
-@app.get("/ready", tags=["Choose pizza"])
+@app.get("/ready", tags=["Choose pizza"])  #todo to correct return in cart table
 def get_base_pizza(choice: str):
     with engine.begin() as conn:
         res = conn.execute(select(base_pizzas_table.c.price).where(base_pizzas_table.c.name == choice))
-        a =  res.scalar()
+        # a =  res.scalar()
+        b = conn.execute(insert(cart_table).values(user_id=int(b.scalar()), purchase="selfmade pizza", summ=number))
     return {"price of base pizza": a}
 
 

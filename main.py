@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Query, Depends, HTTPException, status, Form
+from fastapi import FastAPI, Query, Depends, HTTPException, status, Form, Body
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from jose import JWTError, jwt
@@ -9,9 +10,9 @@ from typing import Union
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, select, insert, delete, ForeignKey
 
 import schemas  #todo why "from . import dont work"
-import sys
-
-print(sys.path)
+# import sys
+#
+# print(sys.path)
 
 
 # todo put every theme to different files schemas, models...
@@ -22,7 +23,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 app = FastAPI(title="Pizza APP", description="App service for pizzerias")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-engine = create_engine("sqlite:///./pizzeria_DB.db", echo=True)
+engine = create_engine("sqlite:///./pizzeria_DB.db") #todo можно вставить echo=True
 metadata = MetaData()
 
 
@@ -119,12 +120,12 @@ with engine.begin() as conn:
     if not a.all():
         ing = conn.execute(stmt_ingr,
                            [
-                               {"ingredient": "cheese", "price_gr": 250},
-                               {"ingredient": "tomato", "price_gr": 60},
-                               {"ingredient": "olives", "price_gr": 115},
-                               {"ingredient": "onion", "price_gr": 80},
-                               {"ingredient": "green", "price_gr": 90},
-                               {"ingredient": "sausage", "price_gr": 200},
+                               {"ingredient": "cheese", "price_gr": 25},
+                               {"ingredient": "tomato", "price_gr": 6},
+                               {"ingredient": "olives", "price_gr": 15},
+                               {"ingredient": "onion", "price_gr": 8},
+                               {"ingredient": "green", "price_gr": 9},
+                               {"ingredient": "sausage", "price_gr": 20},
                                {"ingredient": "small", "price_gr": 1000}, # todo remove sizes from ingredient table (it's just a workaround)
                                {"ingredient": "normal", "price_gr": 1500},
                                {"ingredient": "big", "price_gr": 2000},
@@ -149,23 +150,24 @@ with engine.begin() as conn:
                            ])
 
 
-
-def suum(ingredients: Annotated[schemas.PizzaConstr, Depends(schemas.PizzaConstr)]):
+def suum(ingredients: Annotated[schemas.PizzaConstr, Depends(schemas.PizzaConstr)],
+         type: Annotated[str, Body()] ="Armenian Classic", size: Annotated[str, Body()] = "normal"):
     with engine.begin() as conn:
         a = 0
-        for k, v in ingredients.model_dump(exclude_defaults=True).items():
-            print(k, v)
+        res = conn.execute(select(base_pizzas_table.c.price).where(base_pizzas_table.c.name == type))
+        a = a + int(res.scalar())
+        for k, v in ingredients.ingredients.model_dump(exclude_defaults=True).items():
             res = conn.execute(select(ingred_table.c.price_gr).where(ingred_table.c.ingredient == str(k)))
-            if v == "small":
-                a += 1000
-            elif v == "normal":
-                a += 1500
-            elif v == "big":
-                a += 2000
-            else:
-                a = (a + int(res.scalar())*v)
-            print("***********************",a)
-        return a
+            a = (a + int(res.scalar())*v)
+        if size == "small":
+            a += 1000
+        elif size == "normal":
+            a += 1500
+        elif size == "big":
+            a += 2000
+        b = {"a": a, "ing": list(ingredients.ingredients.model_dump(exclude_defaults=True).items())}
+        # print("--------------------", b["ing"])
+        return b
 
 
 
@@ -272,42 +274,46 @@ async def login_for_access_token(
 async def read_users_me(
     current_user: Annotated[schemas.User, Depends(get_current_user)]
 ):
-    print("*-*-*-*-*-*-*-*", current_user)
     return current_user
 
 
 @app.post("/cart/pizza", tags=["Choose pizza"])
-    def
-
-
-
-
-
-
-
-
-
-@app.post("/construct", tags=["Choose pizza"])
-def get_suum(number: Annotated[int, Depends(suum)], z: Annotated[schemas.UserInDB, Depends(read_users_me)]):
-    # x = read_users_me()
-    # print("*************", type(z))
-    # print("*************", z.username)
-    c = z.username
-    # print("*********", type(c), c)
+def pizza_making(number: Annotated[dict, Depends(suum)], z: Annotated[schemas.UserInDB, Depends(read_users_me)]):
     with engine.begin() as conn:
-        b = conn.execute(select(user_table.c.id).where(user_table.c.username == c))
-        # print("**********", b.scalar())
-        a = conn.execute(insert(cart_table).values(user_id = b.scalar(), summ = number))
-    return {"price of cunstructed pizza": number}
+        res = conn.execute(insert(receipt_table).values(ingredient = str(number["ing"]), price = number["a"]))
 
 
-@app.get("/ready", tags=["Choose pizza"])  #todo to correct return in cart table
-def get_base_pizza(choice: str):
-    with engine.begin() as conn:
-        res = conn.execute(select(base_pizzas_table.c.price).where(base_pizzas_table.c.name == choice))
-        a =  res.scalar()
-        b = conn.execute(insert(cart_table).values(user_id=int(b.scalar()), purchase="selfmade pizza", summ=a))
-    return {"price of base pizza": a}
+
+
+
+
+
+
+
+
+
+
+# @app.post("/construct", tags=["Choose pizza"])
+# def get_suum(number: Annotated[int, Depends(suum)], z: Annotated[schemas.UserInDB, Depends(read_users_me)]):
+#     # x = read_users_me()
+#     # print("*************", type(z))
+#     # print("*************", z.username)
+#     c = z.username
+#     # print("*********", type(c), c)
+#     with engine.begin() as conn:
+#         b = conn.execute(select(user_table.c.id).where(user_table.c.username == c))
+#         # print("**********", b.scalar())
+#         a = conn.execute(insert(cart_table).values(user_id = b.scalar(), summ = number))
+#     return {"price of cunstructed pizza": number}
+#
+#
+# @app.get("/ready", tags=["Choose pizza"])  #todo to correct return in cart table
+# def get_base_pizza(choice: str):
+#     with engine.begin() as conn:
+#         res = conn.execute(select(base_pizzas_table.c.price).where(base_pizzas_table.c.name == choice))
+#         a =  res.scalar()
+#         b = conn.execute(insert(cart_table).values(user_id=int(b.scalar()), purchase="selfmade pizza", summ=a))
+#     return {"price of base pizza": a}
 
 
 @app.get("/", tags=["Starting page"])

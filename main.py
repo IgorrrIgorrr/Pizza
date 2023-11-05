@@ -8,7 +8,7 @@ from typing_extensions import Annotated
 from typing import Union
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, select, insert, delete, ForeignKey
 
-import schemas #todo why "from . import dont work"
+import schemas  #todo why "from . import dont work"
 import sys
 
 print(sys.path)
@@ -68,7 +68,7 @@ cart_table = Table(
     Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
     Column("user_id", ForeignKey("users.id")), # TODO MAKE ONE TO MANY
     Column("receipt", Integer, ForeignKey("receipt.id")),
-    Column("summ", Integer),
+    # Column("summ", Integer),
 )
 
 
@@ -97,7 +97,7 @@ orders_detail_table = Table(
 )
 
 
-# metadata.drop_all(engine)           # Чтобы при каждом изменении в моделях таблиц они пересоздавались...
+metadata.drop_all(engine)           # Чтобы при каждом изменении в моделях таблиц они пересоздавались...
 metadata.create_all(engine)
 
 stmt_ingr = insert(ingred_table)
@@ -150,9 +150,6 @@ with engine.begin() as conn:
 
 
 
-
-
-
 def suum(ingredients: Annotated[schemas.PizzaConstr, Depends(schemas.PizzaConstr)]):
     with engine.begin() as conn:
         a = 0
@@ -167,6 +164,7 @@ def suum(ingredients: Annotated[schemas.PizzaConstr, Depends(schemas.PizzaConstr
                 a += 2000
             else:
                 a = (a + int(res.scalar())*v)
+            print("***********************",a)
         return a
 
 
@@ -274,7 +272,19 @@ async def login_for_access_token(
 async def read_users_me(
     current_user: Annotated[schemas.User, Depends(get_current_user)]
 ):
+    print("*-*-*-*-*-*-*-*", current_user)
     return current_user
+
+
+@app.post("/cart/pizza", tags=["Choose pizza"])
+    def
+
+
+
+
+
+
+
 
 
 @app.post("/construct", tags=["Choose pizza"])
@@ -287,7 +297,7 @@ def get_suum(number: Annotated[int, Depends(suum)], z: Annotated[schemas.UserInD
     with engine.begin() as conn:
         b = conn.execute(select(user_table.c.id).where(user_table.c.username == c))
         # print("**********", b.scalar())
-        a = conn.execute(insert(cart_table).values(user_id = int(b.scalar()), purchase = "selfmade pizza", summ = number))
+        a = conn.execute(insert(cart_table).values(user_id = b.scalar(), summ = number))
     return {"price of cunstructed pizza": number}
 
 
@@ -295,8 +305,8 @@ def get_suum(number: Annotated[int, Depends(suum)], z: Annotated[schemas.UserInD
 def get_base_pizza(choice: str):
     with engine.begin() as conn:
         res = conn.execute(select(base_pizzas_table.c.price).where(base_pizzas_table.c.name == choice))
-        # a =  res.scalar()
-        b = conn.execute(insert(cart_table).values(user_id=int(b.scalar()), purchase="selfmade pizza", summ=number))
+        a =  res.scalar()
+        b = conn.execute(insert(cart_table).values(user_id=int(b.scalar()), purchase="selfmade pizza", summ=a))
     return {"price of base pizza": a}
 
 

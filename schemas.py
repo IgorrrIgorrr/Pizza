@@ -2,15 +2,21 @@ from pydantic import BaseModel, Field
 from typing import Union
 
 
-class PizzaConstr(BaseModel):
+
+class Ingredients(BaseModel):
     cheese: Union[int, None] = None
     tomato: Union[int, None] = None
     olives: Union[int, None] = None
     onion: Union[int, None] = None
     green: Union[int, None] = None
     sausage: Union[int, None] = None
-    size: Union[str, None] = Field(default=None, description="type 'small', 'normal' or 'big'",
+
+
+class PizzaConstr(BaseModel):
+    type: Union[str, None]
+    size: Union[str, None] = Field(default="normal", description="type 'small', 'normal' or 'big'",
                                    examples=["big", "normal", "small"]) # todo make default (medium)
+    ingredients: Union[Ingredients, None] = None
 
 
 class Token(BaseModel):

@@ -1,22 +1,3 @@
-# import sys
-# sys.path.insert(0, '/c/Users/User/PycharmProjects/Pizza')
-#
-# import os
-# from pprint import pprint
-#
-# print("Current working directory:", os.getcwd())
-#
-# print("Files in current directory:", os.listdir())
-#
-# pprint(sys.path)
-
-
-# pprint(sys.path)
-# if __package__ is None or __package__ == '':
-#     print("Этот файл не является частью пакета.")
-# else:
-#     print("Этот файл является частью пакета:", __package__)
-
 from datetime import timedelta
 from fastapi import Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordRequestForm
@@ -102,3 +83,7 @@ def delete_pizza_from_cart(id:int):
         res = conn.execute(delete(cart_table).where(cart_table.c.id == id))
         return {"answer": "This pizza was successfully deleted"}
 
+@app.post("/cart/ready")
+def finished_choosing():
+    with engine.begin() as conn:
+        baking = conn.execute()

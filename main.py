@@ -10,9 +10,7 @@ from typing import Union
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, select, insert, delete, ForeignKey
 
 import schemas  #todo why "from . import dont work"
-# import sys
-#
-# print(sys.path)
+
 
 
 # todo put every theme to different files schemas, models...
@@ -68,8 +66,8 @@ cart_table = Table(
     metadata,
     Column("id", Integer, autoincrement=True, unique=True, primary_key=True),
     Column("user_id", ForeignKey("users.id")), # TODO MAKE ONE TO MANY
-    Column("receipt", Integer, ForeignKey("receipt.id")),
-    # Column("summ", Integer),
+    Column("receipt", ForeignKey("receipt.id")),
+    # Column("summa", Integer),
 )
 
 
@@ -278,9 +276,13 @@ async def read_users_me(
 
 
 @app.post("/cart/pizza", tags=["Choose pizza"])
-def pizza_making(number: Annotated[dict, Depends(suum)], z: Annotated[schemas.UserInDB, Depends(read_users_me)]):
+def pizza_making(number: Annotated[dict, Depends(suum)], user: Annotated[schemas.UserInDB, Depends(read_users_me)]):
     with engine.begin() as conn:
         res = conn.execute(insert(receipt_table).values(ingredient = str(number["ing"]), price = number["a"]))
+        a = res.inserted_primary_key[0]
+        # res2 = conn.execute(insert(cart_table).values())
+        b = conn.execute(select(user_table.c.id).where(user_table.c.username == user.username))
+        res3 = conn.execute(insert(cart_table).values(user_id = b.scalar(), receipt = a))
 
 
 
@@ -290,9 +292,7 @@ def pizza_making(number: Annotated[dict, Depends(suum)], z: Annotated[schemas.Us
 
 
 
-
-
-
+#
 # @app.post("/construct", tags=["Choose pizza"])
 # def get_suum(number: Annotated[int, Depends(suum)], z: Annotated[schemas.UserInDB, Depends(read_users_me)]):
 #     # x = read_users_me()

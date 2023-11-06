@@ -279,41 +279,15 @@ async def read_users_me(
 def pizza_making(number: Annotated[dict, Depends(suum)], user: Annotated[schemas.UserInDB, Depends(read_users_me)]):
     with engine.begin() as conn:
         res = conn.execute(insert(receipt_table).values(ingredient = str(number["ing"]), price = number["a"]))
-        a = res.inserted_primary_key[0]
-        # res2 = conn.execute(insert(cart_table).values())
-        b = conn.execute(select(user_table.c.id).where(user_table.c.username == user.username))
-        res3 = conn.execute(insert(cart_table).values(user_id = b.scalar(), receipt = a))
+        res_p_key = res.inserted_primary_key[0]
+        us_id = conn.execute(select(user_table.c.id).where(user_table.c.username == user.username))
+        us_id_scal = us_id.scalar()
+        res2 = conn.execute(insert(cart_table).values(user_id = us_id_scal, receipt = res_p_key))
+        res4 = conn.execute(insert(orders_table).values(users_id=us_id_scal, state = "haven't started cooking yet"))
+        res4_p_key = res4.inserted_primary_key[0]
+        res3 = conn.execute(insert(orders_detail_table).values(receipt_id = res_p_key, orders_id = res4_p_key))
 
-
-
-
-
-
-
-
-
-#
-# @app.post("/construct", tags=["Choose pizza"])
-# def get_suum(number: Annotated[int, Depends(suum)], z: Annotated[schemas.UserInDB, Depends(read_users_me)]):
-#     # x = read_users_me()
-#     # print("*************", type(z))
-#     # print("*************", z.username)
-#     c = z.username
-#     # print("*********", type(c), c)
-#     with engine.begin() as conn:
-#         b = conn.execute(select(user_table.c.id).where(user_table.c.username == c))
-#         # print("**********", b.scalar())
-#         a = conn.execute(insert(cart_table).values(user_id = b.scalar(), summ = number))
-#     return {"price of cunstructed pizza": number}
-#
-#
-# @app.get("/ready", tags=["Choose pizza"])  #todo to correct return in cart table
-# def get_base_pizza(choice: str):
-#     with engine.begin() as conn:
-#         res = conn.execute(select(base_pizzas_table.c.price).where(base_pizzas_table.c.name == choice))
-#         a =  res.scalar()
-#         b = conn.execute(insert(cart_table).values(user_id=int(b.scalar()), purchase="selfmade pizza", summ=a))
-#     return {"price of base pizza": a}
+    return {"response": "pizza successfully chosen"}
 
 
 @app.get("/", tags=["Starting page"])

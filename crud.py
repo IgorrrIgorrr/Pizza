@@ -1,32 +1,28 @@
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Query, Depends, HTTPException, status, Form, Body
-from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from passlib.context import CryptContext
+from fastapi import Depends, HTTPException, status, Body
 from jose import JWTError, jwt
-
 from typing_extensions import Annotated
 from typing import Union
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, select, insert, delete, ForeignKey
+from sqlalchemy import select
 
-import schemas  # todo why "from . import dont work"
-
-from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
-
+from schemas import PizzaConstr, UserInDB, TokenData
+from models import user_table, base_pizzas_table, ingred_table
+from config import SECRET_KEY, ALGORITHM, pwd_context, engine, oauth2_scheme
 
 
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-def suum(ingredients: Annotated[schemas.PizzaConstr, Depends(schemas.PizzaConstr)],
-         type: Annotated[str, Body()] ="Armenian Classic", size: Annotated[str, Body()] = "normal"):
+
+def suum(ingredients: Annotated[PizzaConstr, Depends(PizzaConstr)],
+         type: Annotated[str, Body()] = "Armenian Classic", size: Annotated[str, Body()] = "normal"):
     with engine.begin() as conn:
         a = 0
         res = conn.execute(select(base_pizzas_table.c.price).where(base_pizzas_table.c.name == type))
         a = a + int(res.scalar())
         for k, v in ingredients.ingredients.model_dump(exclude_defaults=True).items():
             res = conn.execute(select(ingred_table.c.price_gr).where(ingred_table.c.ingredient == str(k)))
-            a = (a + int(res.scalar())*v)
+            a = (a + int(res.scalar()) * v)
         if size == "small":
             a += 1000
         elif size == "normal":
@@ -38,21 +34,16 @@ def suum(ingredients: Annotated[schemas.PizzaConstr, Depends(schemas.PizzaConstr
         return b
 
 
-
-
-
-def verify_password(plain_password, hashed_password):           #ГОТОВО
+def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 
-
-
-
-def get_user(username: str): #todo добавлю как-нибудь ошибку при непавльном вводе...         #ГОТОВО
+def get_user(username: str):  # todo add exception while wrong credentials ...
     with engine.begin() as conn:
         a = conn.execute(select(user_table).where(user_table.c.username == username))
-        b = a.one() # todo correct mapping
-        return schemas.UserInDB(username = b[1], full_name= b[2], address= b[3], telephone_number= b[4], email=b[5], hashed_password=b[6])
+        b = a.one()  # todo correct mapping
+        return UserInDB(username=b[1], full_name=b[2], address=b[3], telephone_number=b[4], email=b[5],
+                        hashed_password=b[6])
 
 
 def check_for_username_existence(username: str):
@@ -64,8 +55,7 @@ def check_for_username_existence(username: str):
             return False
 
 
-
-def authenticate_user(username: str, password: str):            #ГОТОВО
+def authenticate_user(username: str, password: str):
     user = get_user(username)
     print(user.hashed_password)
     if not user:
@@ -75,7 +65,7 @@ def authenticate_user(username: str, password: str):            #ГОТОВО
     return user
 
 
-def create_access_token(data: dict, expires_delta: Union[timedelta, None]):         #ГОТОВО
+def create_access_token(data: dict, expires_delta: Union[timedelta, None]):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -86,7 +76,7 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None]):     
     return encoded_jwt
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):          #ГОТОВО
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -97,7 +87,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):      
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-        token_data = schemas.TokenData(username=username)
+        token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
     user = get_user(username=token_data.username)

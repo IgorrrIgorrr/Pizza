@@ -1,38 +1,41 @@
-from datetime import datetime, timedelta
-from fastapi import FastAPI, Query, Depends, HTTPException, status, Form, Body
-from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from passlib.context import CryptContext
-from jose import JWTError, jwt
+# import sys
+# sys.path.insert(0, '/c/Users/User/PycharmProjects/Pizza')
+#
+# import os
+# from pprint import pprint
+#
+# print("Current working directory:", os.getcwd())
+#
+# print("Files in current directory:", os.listdir())
+#
+# pprint(sys.path)
 
+
+# pprint(sys.path)
+# if __package__ is None or __package__ == '':
+#     print("Этот файл не является частью пакета.")
+# else:
+#     print("Этот файл является частью пакета:", __package__)
+
+from datetime import timedelta
+from fastapi import Depends, HTTPException, status, Form
+from fastapi.security import OAuth2PasswordRequestForm
 from typing_extensions import Annotated
-from typing import Union
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, select, insert, delete, ForeignKey
+from sqlalchemy import select, insert, delete
 
-import schemas  # todo why "from . import dont work"
-import crud
-from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
-
+from config import ACCESS_TOKEN_EXPIRE_MINUTES, app, engine
+from models import cart_table, user_table, receipt_table, orders_table, orders_detail_table
+from crud import get_password_hash, check_for_username_existence, authenticate_user, create_access_token, get_current_user, suum
+from schemas import Token, User, UserInDB
 # todo put every theme to different files schemas, models...
-# SECRET_KEY = "b3ee86aeb59bcaf62a3f9626a5d0c0055a7dc5d29fd25195ff6af6710a51de63"
-# ALGORITHM = "HS256"
-# ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-app = FastAPI(title="Pizza APP", description="App service for pizzerias")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-engine = create_engine("sqlite:///./pizzeria_DB.db") #todo можно вставить echo=True
-metadata = MetaData()
-
-
 
 
 @app.get("/test")
-def a(fullname: str, b = Depends(authenticate_user)):
+def a(fullname: str, b=Depends(authenticate_user)):
     return b
 
 
-@app.post("/token", response_model= schemas.Token)           #ГОТОВО
+@app.post("/token", response_model= Token)
 async def login_for_access_token(
             form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ):
@@ -50,15 +53,15 @@ async def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.get("/users/me/", response_model=schemas.User)         #ГОТОВО
+@app.get("/users/me/", response_model=User)
 async def read_users_me(
-    current_user: Annotated[schemas.User, Depends(get_current_user)]
+    current_user: Annotated[User, Depends(get_current_user)]
 ):
     return current_user
 
 
 @app.post("/cart/pizza", tags=["Choose pizza"])
-def pizza_making(number: Annotated[dict, Depends(suum)], user: Annotated[schemas.UserInDB, Depends(read_users_me)]):
+def pizza_making(number: Annotated[dict, Depends(suum)], user: Annotated[UserInDB, Depends(read_users_me)]):
     with engine.begin() as conn:
         rec_ins = conn.execute(insert(receipt_table).values(ingredient = str(number["ing"]), price = number["a"]))
         rec_p_key = rec_ins.inserted_primary_key[0]

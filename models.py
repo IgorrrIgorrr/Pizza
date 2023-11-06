@@ -1,20 +1,6 @@
-from datetime import datetime, timedelta
-from fastapi import FastAPI, Query, Depends, HTTPException, status, Form, Body
-from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from passlib.context import CryptContext
-from jose import JWTError, jwt
+from sqlalchemy import Table, Column, Integer, String, select, insert, delete, ForeignKey
 
-from typing_extensions import Annotated
-from typing import Union
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, select, insert, delete, ForeignKey
-
-import schemas  # todo why "from . import dont work"
-import crud
-from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
-
-
-
+from config import engine, metadata
 
 user_table = Table(
     "users",
@@ -130,6 +116,6 @@ with engine.begin() as conn:
     if not c.all():
         use = conn.execute(stmt_user,
                            [
-                               {"username": "utest", "full_name": "ftest", "address": "atest", "telephone_number": 1, "email":"etest", "hashed_password": get_password_hash("ptest")}
+                               {"username": "utest", "full_name": "ftest", "address": "atest", "telephone_number": 1, "email":"etest", "hashed_password": "$2b$12$ifvFi0DIKrhWggaRLizWZ.yaEjvbyq3eZeuMU8lgs.dqSuu.m5NUW"}
                            ])
 

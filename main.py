@@ -178,7 +178,7 @@ def verify_password(plain_password, hashed_password):           #ГОТОВО
 
 
 
-def get_user(username: str): #добавлю как-нибудь ошибку при непавльном вводе...         #ГОТОВО
+def get_user(username: str): #todo добавлю как-нибудь ошибку при непавльном вводе...         #ГОТОВО
     with engine.begin() as conn:
         a = conn.execute(select(user_table).where(user_table.c.username == username))
         b = a.one() # todo correct mapping
@@ -278,16 +278,17 @@ async def read_users_me(
 @app.post("/cart/pizza", tags=["Choose pizza"])
 def pizza_making(number: Annotated[dict, Depends(suum)], user: Annotated[schemas.UserInDB, Depends(read_users_me)]):
     with engine.begin() as conn:
-        res = conn.execute(insert(receipt_table).values(ingredient = str(number["ing"]), price = number["a"]))
-        res_p_key = res.inserted_primary_key[0]
-        us_id = conn.execute(select(user_table.c.id).where(user_table.c.username == user.username))
-        us_id_scal = us_id.scalar()
-        res2 = conn.execute(insert(cart_table).values(user_id = us_id_scal, receipt = res_p_key))
-        res4 = conn.execute(insert(orders_table).values(users_id=us_id_scal, state = "haven't started cooking yet"))
-        res4_p_key = res4.inserted_primary_key[0]
-        res3 = conn.execute(insert(orders_detail_table).values(receipt_id = res_p_key, orders_id = res4_p_key))
+        rec_ins = conn.execute(insert(receipt_table).values(ingredient = str(number["ing"]), price = number["a"]))
+        rec_p_key = rec_ins.inserted_primary_key[0]
+        us_id_sel = conn.execute(select(user_table.c.id).where(user_table.c.username == user.username))
+        us_id_sel_scal = us_id_sel.scalar()
+        cart_ins = conn.execute(insert(cart_table).values(user_id = us_id_sel_scal, receipt = rec_p_key))
+        cart_ins_p_key = cart_ins.inserted_primary_key[0]
+        ord_ins = conn.execute(insert(orders_table).values(users_id=us_id_sel_scal, state = "haven't started cooking yet"))
+        ord_p_key = ord_ins.inserted_primary_key[0]
+        ord_det_ins = conn.execute(insert(orders_detail_table).values(receipt_id = rec_p_key, orders_id = ord_p_key))
 
-    return {"response": "pizza successfully chosen"}
+    return {"response": "pizza successfully chosen", "pizzas_id": cart_ins_p_key }
 
 
 @app.get("/", tags=["Starting page"])
@@ -296,7 +297,7 @@ def greeting():
 
 
 
-@app.post("/registration") #    ДОБАВИТЬ ОШИБКУ, ЕСЛИ ЕСТЬ УЖЕ ТАКОЙ ПОЛЬЗОВАТЕЛЬ!!!!
+@app.post("/registration") #todo    ДОБАВИТЬ ОШИБКУ, ЕСЛИ ЕСТЬ УЖЕ ТАКОЙ ПОЛЬЗОВАТЕЛЬ!!!!
 def registration(username: Annotated[str, Form()], full_name: Annotated[str, Form()], address: Annotated[str, Form()], telephone_number: Annotated[int, Form()], email:Annotated[str, Form()], plain_password:Annotated[str, Form()]):
     if not check_for_username_existence(username):
         hashed_password = get_password_hash(plain_password)
@@ -310,4 +311,8 @@ def registration(username: Annotated[str, Form()], full_name: Annotated[str, For
             return{"response": "new user successfully created"}
 
 
-
+@app.delete("/cart/{id}") #todo make error, while trying to delete pizza twice
+def delete_pizza_from_cart(id:int):
+    with engine.begin() as conn:
+        res = conn.execute(delete(cart_table).where(cart_table.c.id == id))
+        return {"answer": "This pizza was successfully deleted"}

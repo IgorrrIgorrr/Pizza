@@ -87,8 +87,9 @@ def finished_choosing(request: Request):
         find_user_id=conn.execute(select(user_table.c.id).where(user_table.c.username == str(username)))
         a = find_user_id.scalar()
         baking = conn.execute(update(orders_table).where(orders_table.c.users_id == int(a)).values(state = "started baking"))
+        b = conn.execute(select(orders_table.c.id).where(orders_table.c.users_id == int(a)))
         making_cart_empty = conn.execute(delete(cart_table).where(cart_table.c.user_id == int(a)))
-    return {"response": "We started baking your pizzas"}
+    return {"response": "We started baking your pizzas", "your_orders_id": b.scalar()}
 
 
 @app.get("/orders/{id}")

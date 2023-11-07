@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from fastapi import Depends, HTTPException, status, Body
+from fastapi import Depends, HTTPException, status, Body, Request
 from jose import JWTError, jwt
 from typing_extensions import Annotated
 from typing import Union
@@ -76,7 +76,7 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None]):
     return encoded_jwt
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], request: Request):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -93,4 +93,5 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     user = get_user(username=token_data.username)
     if user is None:
         raise credentials_exception
+    request.state.user = user
     return user

@@ -1,20 +1,16 @@
 from datetime import timedelta
-from fastapi import Depends, HTTPException, status, Form
+from fastapi import FastAPI, Depends, HTTPException, status, Form, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from typing_extensions import Annotated
-from sqlalchemy import select, insert, delete
+from sqlalchemy import select, insert, delete, update
 
-from config import ACCESS_TOKEN_EXPIRE_MINUTES, app, engine
+from config import ACCESS_TOKEN_EXPIRE_MINUTES, engine
 from models import cart_table, user_table, receipt_table, orders_table, orders_detail_table
 from crud import get_password_hash, check_for_username_existence, authenticate_user, create_access_token, get_current_user, suum
 from schemas import Token, User, UserInDB
 # todo put every theme to different files schemas, models...
 
-
-@app.get("/test")
-def a(fullname: str, b=Depends(authenticate_user)):
-    return b
-
+app = FastAPI(title="Pizza APP", description="App service for pizzerias")
 
 @app.post("/token", response_model= Token)
 async def login_for_access_token(
@@ -83,7 +79,14 @@ def delete_pizza_from_cart(id:int):
         res = conn.execute(delete(cart_table).where(cart_table.c.id == id))
         return {"answer": "This pizza was successfully deleted"}
 
-@app.post("/cart/ready")
-def finished_choosing():
+
+@app.post("/cart/ready", dependencies=[Depends(get_current_user)])
+def finished_choosing(request: Request):
+    username = request.state.user.username
     with engine.begin() as conn:
-        baking = conn.execute()
+        find_user_id=conn.execute(select(user_table.c.id).where(user_table.c.username == str(username)))
+        a = find_user_id.scalar()
+        baking = conn.execute(update(orders_table).where(orders_table.c.users_id == int(a)).values(state = "started baking"))
+        making_cart_empty = conn.execute(delete(cart_table).where(cart_table.c.user_id == int(a)))
+    return {"response": "We started baking your pizzas"}
+

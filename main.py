@@ -90,3 +90,9 @@ def finished_choosing(request: Request):
         making_cart_empty = conn.execute(delete(cart_table).where(cart_table.c.user_id == int(a)))
     return {"response": "We started baking your pizzas"}
 
+
+@app.get("/orders/{id}")
+def check_orders_status(id: int):
+    with engine.begin() as conn:
+        a = conn.execute(select(orders_table.c.state).where(orders_table.c.users_id == int(id)))
+        return {"status_of_order":a.scalar()}

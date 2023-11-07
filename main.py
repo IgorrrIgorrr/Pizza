@@ -12,7 +12,13 @@ from schemas import Token, User, UserInDB
 
 app = FastAPI(title="Pizza APP", description="App service for pizzerias")
 
-@app.post("/token", response_model= Token)
+
+@app.get("/", tags=["Starting page"])
+def greeting():
+    return {"greeting": "Hello our dear customer!!!"}
+
+
+@app.post("/token", response_model= Token, tags=["Service handlers"])
 async def login_for_access_token(
             form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ):
@@ -30,15 +36,29 @@ async def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.get("/users/me/", response_model=User)
+@app.get("/users/me/", response_model=User, tags=["Service handlers"]) # todo get rid of it
 async def read_users_me(
     current_user: Annotated[User, Depends(get_current_user)]
 ):
     return current_user
 
 
-@app.post("/cart/pizza", tags=["Choose pizza"])
-def pizza_making(number: Annotated[dict, Depends(suum)], user: Annotated[UserInDB, Depends(read_users_me)]):
+@app.post("/registration", tags=["Customer handlers"]) # todo  add error if such user exists
+def registration(username: Annotated[str, Form()], full_name: Annotated[str, Form()], address: Annotated[str, Form()], telephone_number: Annotated[int, Form()], email:Annotated[str, Form()], plain_password:Annotated[str, Form()]):
+    if not check_for_username_existence(username):
+        hashed_password = get_password_hash(plain_password)
+        stmt_user = insert(user_table)
+        with engine.begin() as conn:
+            use = conn.execute(stmt_user,
+                               [
+                                   {"username": username, "full_name": full_name, "address": address,
+                                    "telephone_number": telephone_number, "email": email, "hashed_password": hashed_password},
+                               ])
+            return{"response": "new user successfully created"}
+
+
+@app.post("/cart/pizza", tags=["Customer handlers"])
+def pizza_choosing(number: Annotated[dict, Depends(suum)], user: Annotated[UserInDB, Depends(read_users_me)]):
     with engine.begin() as conn:
         rec_ins = conn.execute(insert(receipt_table).values(ingredient = str(number["ing"]), price = number["a"]))
         rec_p_key = rec_ins.inserted_primary_key[0]
@@ -53,34 +73,14 @@ def pizza_making(number: Annotated[dict, Depends(suum)], user: Annotated[UserInD
     return {"response": "pizza successfully chosen", "pizzas_id": cart_ins_p_key }
 
 
-@app.get("/", tags=["Starting page"])
-def greeting():
-    return {"greeting": "Hello our dear customer!!!"}
-
-
-
-@app.post("/registration") #todo    ДОБАВИТЬ ОШИБКУ, ЕСЛИ ЕСТЬ УЖЕ ТАКОЙ ПОЛЬЗОВАТЕЛЬ!!!!
-def registration(username: Annotated[str, Form()], full_name: Annotated[str, Form()], address: Annotated[str, Form()], telephone_number: Annotated[int, Form()], email:Annotated[str, Form()], plain_password:Annotated[str, Form()]):
-    if not check_for_username_existence(username):
-        hashed_password = get_password_hash(plain_password)
-        stmt_user = insert(user_table)
-        with engine.begin() as conn:
-            use = conn.execute(stmt_user,
-                               [
-                                   {"username": username, "full_name": full_name, "address": address,
-                                    "telephone_number": telephone_number, "email": email, "hashed_password": hashed_password},
-                               ])
-            return{"response": "new user successfully created"}
-
-
-@app.delete("/cart/{id}") #todo make error, while trying to delete pizza twice
+@app.delete("/cart/{id}", tags=["Customer handlers"]) # todo make error, while trying to delete pizza twice
 def delete_pizza_from_cart(id:int):
     with engine.begin() as conn:
         res = conn.execute(delete(cart_table).where(cart_table.c.id == id))
         return {"answer": "This pizza was successfully deleted"}
 
 
-@app.post("/cart/ready", dependencies=[Depends(get_current_user)])
+@app.post("/cart/ready", dependencies=[Depends(get_current_user)], tags=["Customer handlers"])
 def finished_choosing(request: Request):
     username = request.state.user.username
     with engine.begin() as conn:
@@ -92,8 +92,23 @@ def finished_choosing(request: Request):
     return {"response": "We started baking your pizzas", "your_orders_id": b.scalar()}
 
 
-@app.get("/orders/{id}")
+@app.get("/orders/{id}", tags=["Customer handlers"])
 def check_orders_status(id: int):
     with engine.begin() as conn:
-        a = conn.execute(select(orders_table.c.state).where(orders_table.c.users_id == int(id)))
+        a = conn.execute(select(orders_table.c.state).where(orders_table.c.users_id == int(id))) # todo maby change id of customer on id of order???
         return {"status_of_order":a.scalar()}
+
+
+@app.get("/pizzamaster/{id}", tags=["Pizza-master actions"])  # todo change status only of first position in orders
+def change_order_status_on_ready(id: int):
+    with engine.begin() as conn:
+        a = conn.execute(update(orders_table).where(orders_table.c.id == int(id)).values(state = "Your order is ready! Come take it!"))
+    return{"status": "status changed"}
+
+
+@app.get("/pizzamaster/taken/{id}", tags=["Pizza-master actions"])
+def customer_have_taken_order(id:int):
+    with engine.begin() as conn:
+        a = conn.execute(delete(orders_table).where(orders_table.c.id == int(id)))
+    return {"response":"order was taken"}
+

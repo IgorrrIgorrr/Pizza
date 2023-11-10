@@ -13,7 +13,7 @@ class Ingredients(BaseModel):
 
 class PizzaConstr(BaseModel):
     # # type: str = Field(default="Armenian Classic",)# todo how to sent type, size in a body of one BM class???
-    # # size: str = Field(default="normal", description="type 'small', 'normal' or 'big'",
+    # # size: str = Field(default="normal", description="type 'small', 'normal' or 'big'", # todo delete workaround
     #                                examples=["big", "normal", "small"]) # todo make default (medium)
     ingredients: Union[Ingredients, None] = None
 

@@ -17,20 +17,19 @@ def get_password_hash(password):
 def suum(ingredients: Annotated[PizzaConstr, Depends(PizzaConstr)],
          type: Annotated[str, Body()] = "Armenian Classic", size: Annotated[str, Body()] = "normal"):
     with engine.begin() as conn:
-        a = 0
+        acum = 0
         res = conn.execute(select(base_pizzas_table.c.price).where(base_pizzas_table.c.name == type))
-        a = a + int(res.scalar())
+        acum = acum + int(res.scalar())
         for k, v in ingredients.ingredients.model_dump(exclude_defaults=True).items():
             res = conn.execute(select(ingred_table.c.price_gr).where(ingred_table.c.ingredient == str(k)))
-            a = (a + int(res.scalar()) * v)
+            acum = (acum + int(res.scalar()) * v)
         if size == "small":
-            a += 1000
+            acum += 1000
         elif size == "normal":
-            a += 1500
+            acum += 1500
         elif size == "big":
-            a += 2000
-        b = {"a": a, "ing": list(ingredients.ingredients.model_dump(exclude_defaults=True).items())}
-        # print("--------------------", b["ing"])
+            acum += 2000
+        b = {"price": acum, "ingred": list(ingredients.ingredients.model_dump(exclude_defaults=True).items())}
         return b
 
 
@@ -42,7 +41,7 @@ def get_user(username: str):  # todo add exception while wrong credentials ...
     with engine.begin() as conn:
         a = conn.execute(select(user_table).where(user_table.c.username == username))
         b = a.one()  # todo correct mapping
-        return UserInDB(username=b[1], full_name=b[2], address=b[3], telephone_number=b[4], email=b[5],
+        return UserInDB(id = b[0], username=b[1], full_name=b[2], address=b[3], telephone_number=b[4], email=b[5],
                         hashed_password=b[6])
 
 

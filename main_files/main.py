@@ -8,7 +8,10 @@ from config import ACCESS_TOKEN_EXPIRE_MINUTES, engine
 from models import cart_table, user_table, receipt_table, orders_table, orders_detail_table
 from crud import get_password_hash, check_for_username_existence, authenticate_user, create_access_token, get_current_user, suum
 from schemas import Token, User, UserInDB
-# todo put every theme to different files schemas, models...
+
+# todo to implement new column in user table for pizzeria employees and additional fild for accepting rmployee with director, to preven registrstion customer as employee...
+
+
 
 app = FastAPI(title="Pizza APP", description="App service for pizzerias")
 
@@ -36,7 +39,7 @@ async def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.get("/users/me/", response_model=User, tags=["Service handlers"]) # todo get rid of it
+@app.get("/users/me/", response_model=User, tags=["Service handlers"]) # todo maby get rid of it??
 async def read_users_me(
     current_user: Annotated[User, Depends(get_current_user)]
 ):
@@ -58,37 +61,44 @@ def registration(username: Annotated[str, Form()], full_name: Annotated[str, For
 
 
 @app.post("/cart/pizza", tags=["Customer handlers"])
-def pizza_choosing(number: Annotated[dict, Depends(suum)], user: Annotated[UserInDB, Depends(read_users_me)]):
+def pizza_choosing(pizza_info: Annotated[dict, Depends(suum)], user: Annotated[UserInDB, Depends(read_users_me)]):
     with engine.begin() as conn:
-        rec_ins = conn.execute(insert(receipt_table).values(ingredient = str(number["ing"]), price = number["a"]))
+        rec_ins = conn.execute(insert(receipt_table).values(ingredient = str(pizza_info["ingred"]), price = pizza_info["price"]))
         rec_p_key = rec_ins.inserted_primary_key[0]
         us_id_sel = conn.execute(select(user_table.c.id).where(user_table.c.username == user.username))
         us_id_sel_scal = us_id_sel.scalar()
         cart_ins = conn.execute(insert(cart_table).values(user_id = us_id_sel_scal, receipt = rec_p_key))
         cart_ins_p_key = cart_ins.inserted_primary_key[0]
-        ord_ins = conn.execute(insert(orders_table).values(users_id=us_id_sel_scal, state = "haven't started cooking yet"))
-        ord_p_key = ord_ins.inserted_primary_key[0]
-        ord_det_ins = conn.execute(insert(orders_detail_table).values(receipt_id = rec_p_key, orders_id = ord_p_key))
+        # ord_ins = conn.execute(insert(orders_table).values(users_id=us_id_sel_scal, state = "haven't started cooking yet"))
+        # ord_p_key = ord_ins.inserted_primary_key[0]
+        # ord_det_ins = conn.execute(insert(orders_detail_table).values(receipt_id = rec_p_key, orders_id = ord_p_key))
 
-    return {"response": "pizza successfully chosen", "pizzas_id": cart_ins_p_key }
+    return {"response": "Pizza successfully chosen", "pizzas_id": cart_ins_p_key}
 
 
 @app.delete("/cart/{id}", tags=["Customer handlers"]) # todo make error, while trying to delete pizza twice
 def delete_pizza_from_cart(id:int):
     with engine.begin() as conn:
-        res = conn.execute(delete(cart_table).where(cart_table.c.id == id))
+        cart_del = conn.execute(delete(cart_table).where(cart_table.c.id == id))
+        rec_del = conn.execute(delete(receipt_table).where(receipt_table.c.id == id))
         return {"answer": "This pizza was successfully deleted"}
 
 
-@app.post("/cart/ready", dependencies=[Depends(get_current_user)], tags=["Customer handlers"])
+@app.post("/cart/ready", dependencies=[Depends(get_current_user)], tags=["Customer handlers"])  # todo make pizzas add to order only after confirminig, or not
 def finished_choosing(request: Request):
     username = request.state.user.username
+    id = request.state.user.id
     with engine.begin() as conn:
-        find_user_id=conn.execute(select(user_table.c.id).where(user_table.c.username == str(username)))
+        find_user_id=conn.execute(select(user_table.c.id).where(user_table.c.username == str(username))) #todo seems to me, that i should take id directly from basemodel...))))
         a = find_user_id.scalar()
-        baking = conn.execute(update(orders_table).where(orders_table.c.users_id == int(a)).values(state = "started baking"))
-        b = conn.execute(select(orders_table.c.id).where(orders_table.c.users_id == int(a)))
+        ord_ins = conn.execute(insert(orders_table).values(users_id=id, state="haven't started cooking yet"))
+        ord_p_key = ord_ins.inserted_primary_key[0]
+        ord_det_ins = conn.execute(insert(orders_detail_table).values(receipt_id = rec_p_key, orders_id = ord_p_key))
         making_cart_empty = conn.execute(delete(cart_table).where(cart_table.c.user_id == int(a)))
+
+
+
+
     return {"response": "We started baking your pizzas", "your_orders_id": b.scalar()}
 
 
@@ -99,10 +109,22 @@ def check_orders_status(id: int):
         return {"status_of_order":a.scalar()}
 
 
-@app.get("/pizzamaster/{id}", tags=["Pizza-master actions"])  # todo change status only of first position in orders
+
+
+@app.get("/pizzamaster/receipt", tags=["Pizza-master actions"])
+def look_at_receipt_not_ready_yet():
+    pass
+
+
+@app.get("/pizzamaster/{id}", tags=["Pizza-master actions"])  # todo change status only of first position in orders and make couple statuses, not only ready(begin baking for ec)
 def change_order_status_on_ready(id: int):
+
     with engine.begin() as conn:
         a = conn.execute(update(orders_table).where(orders_table.c.id == int(id)).values(state = "Your order is ready! Come take it!"))
+        # baking = conn.execute(update(orders_table).where(orders_table.c.users_id == int(a)).values(state = "started baking"))
+        # b = conn.execute(select(orders_table.c.id).where(orders_table.c.users_id == int(a)))
+        # cart_ins_p_key = cart_ins.inserted_primary_key[0]
+        # res_sel = conn.execute(select(receipt_table.c.id).where(receipt_table.c.))
     return{"status": "status changed"}
 
 

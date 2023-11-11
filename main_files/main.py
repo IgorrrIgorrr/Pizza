@@ -101,18 +101,20 @@ def delete_pizza_from_cart(id: int, user: Annotated[UserInDB, Depends(read_users
 def finished_choosing(request: Request):
     username = request.state.user.username
     id = request.state.user.id
+    # with engine.begin() as conn:
+    #     find_user_id=conn.execute(select(user_table.c.id).where(user_table.c.username == str(username))) #todo seems to me, that i should take id directly from basemodel...))))
+    #     a = find_user_id.scalar()
+    #     ord_ins = conn.execute(insert(orders_table).values(users_id=id, state="haven't started cooking yet"))
+    #     ord_p_key = ord_ins.inserted_primary_key[0]
+    #     ord_det_ins = conn.execute(insert(orders_detail_table).values(receipt_id = rec_p_key, orders_id = ord_p_key))
+    #
     with engine.begin() as conn:
-        find_user_id=conn.execute(select(user_table.c.id).where(user_table.c.username == str(username))) #todo seems to me, that i should take id directly from basemodel...))))
-        a = find_user_id.scalar()
-        ord_ins = conn.execute(insert(orders_table).values(users_id=id, state="haven't started cooking yet"))
-        ord_p_key = ord_ins.inserted_primary_key[0]
-        ord_det_ins = conn.execute(insert(orders_detail_table).values(receipt_id = rec_p_key, orders_id = ord_p_key))
-        making_cart_empty = conn.execute(delete(cart_table).where(cart_table.c.user_id == int(a)))
+        a = conn.execute(update(orders_table).where(and_(orders_table.c.user_id == id), (orders_table.c.state == "in process of choosing, not ordered yet")).values(state = "ordered"))
+        b = conn.execute(select(orders_table.c.id).where(and_(orders_table.c.user_id == id), (orders_table.c.state == "ordered"))).scalar()
+        making_cart_empty = conn.execute(delete(cart_table).where(cart_table.c.user_id == int(id)))
 
 
-
-
-    return {"response": "We started baking your pizzas", "your_orders_id": b.scalar()}
+    return {"response": "We started baking your pizzas", "your_orders_id": b}
 
 
 @app.get("/orders/{id}", tags=["Customer handlers"])

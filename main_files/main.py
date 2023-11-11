@@ -2,7 +2,7 @@ from datetime import timedelta
 from fastapi import FastAPI, Depends, HTTPException, status, Form, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from typing_extensions import Annotated
-from sqlalchemy import select, insert, delete, update
+from sqlalchemy import select, insert, delete, update, and_, func
 
 from config import ACCESS_TOKEN_EXPIRE_MINUTES, engine
 from models import cart_table, user_table, receipt_table, orders_table, orders_detail_table
@@ -65,22 +65,35 @@ def pizza_choosing(pizza_info: Annotated[dict, Depends(suum)], user: Annotated[U
     with engine.begin() as conn:
         rec_ins = conn.execute(insert(receipt_table).values(ingredient = str(pizza_info["ingred"]), price = pizza_info["price"]))
         rec_p_key = rec_ins.inserted_primary_key[0]
+
         us_id_sel = conn.execute(select(user_table.c.id).where(user_table.c.username == user.username))
         us_id_sel_scal = us_id_sel.scalar()
         cart_ins = conn.execute(insert(cart_table).values(user_id = us_id_sel_scal, receipt = rec_p_key))
         cart_ins_p_key = cart_ins.inserted_primary_key[0]
-        # ord_ins = conn.execute(insert(orders_table).values(users_id=us_id_sel_scal, state = "haven't started cooking yet"))
-        # ord_p_key = ord_ins.inserted_primary_key[0]
-        # ord_det_ins = conn.execute(insert(orders_detail_table).values(receipt_id = rec_p_key, orders_id = ord_p_key))
-
-    return {"response": "Pizza successfully chosen", "pizzas_id": cart_ins_p_key}
+        user_orders = conn.execute(select(orders_table).where(and_(orders_table.c.users_id == us_id_sel_scal), (orders_table.c.state == "in process of choosing, not ordered yet")))
+        a = user_orders.all()
+        if not a:
+            ord_ins = conn.execute(insert(orders_table).values(users_id=us_id_sel_scal, state = "in process of choosing, not ordered yet"))
+            ord_p_key = ord_ins.inserted_primary_key[0]
+        user_orders = conn.execute(select(orders_table.c.id).where(and_(orders_table.c.users_id == us_id_sel_scal), (orders_table.c.state == "in process of choosing, not ordered yet")))
+        b = user_orders.scalar()
+        ord_det_ins = conn.execute(insert(orders_detail_table).values(receipt_id = rec_p_key, orders_id = b))
+    return {"response": "Pizza successfully chosen", "pizzas id": cart_ins_p_key}
 
 
 @app.delete("/cart/{id}", tags=["Customer handlers"]) # todo make error, while trying to delete pizza twice
-def delete_pizza_from_cart(id:int):
+def delete_pizza_from_cart(id: int, user: Annotated[UserInDB, Depends(read_users_me)]):
     with engine.begin() as conn:
+        receipt_id = conn.execute(select(cart_table.c.receipt).where(cart_table.c.id == id)).scalar()
+        orders_detail_id = conn.execute(select(orders_detail_table.c.id).where(orders_detail_table.c.receipt_id == int(receipt_id))).scalar()
+
         cart_del = conn.execute(delete(cart_table).where(cart_table.c.id == id))
-        rec_del = conn.execute(delete(receipt_table).where(receipt_table.c.id == id))
+        rec_del = conn.execute(delete(receipt_table).where(receipt_table.c.id == int(receipt_id)))
+        ord_det_del = conn.execute(delete(orders_detail_table).where(orders_detail_table.c.id ==int(receipt_id)))
+        abc = conn.execute(select(func.count()).select_from(cart_table)).scalar()
+        if abc == 0:
+            aaa = conn.execute(delete(orders_table).where(and_(orders_table.c.users_id==user.id),(orders_table.c.state == "in process of choosing, not ordered yet")))
+
         return {"answer": "This pizza was successfully deleted"}
 
 

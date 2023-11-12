@@ -49,19 +49,6 @@ def check_for_username_existence(username: str):
     with engine.begin() as conn:
         a = conn.execute(select(user_table).where(user_table.c.username == username))
         return a.scalar()
-        # if a.scalar():
-        #     return True
-        # else:
-        #     return False
-        # a = select(user_table).where(user_table.c.username == username).exists()
-        # print("0000000000000000000000", a.__dict__)
-        # if a:
-        #     return True
-        # else:
-        #     return False
-
-
-
 
 
 def authenticate_user(username: str, password: str):

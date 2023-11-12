@@ -48,6 +48,7 @@ async def read_users_me(
 
 @app.post("/registration", tags=["Customer handlers"]) # todo  add error if such user exists
 def registration(username: Annotated[str, Form()], full_name: Annotated[str, Form()], address: Annotated[str, Form()], telephone_number: Annotated[int, Form()], email:Annotated[str, Form()], plain_password:Annotated[str, Form()]):
+    print("iiiiiiiiiiiiiiiiiiiiiiiiiii", check_for_username_existence(username))
     if not check_for_username_existence(username):
         hashed_password = get_password_hash(plain_password)
         stmt_user = insert(user_table)
@@ -58,6 +59,8 @@ def registration(username: Annotated[str, Form()], full_name: Annotated[str, For
                                     "telephone_number": telephone_number, "email": email, "hashed_password": hashed_password},
                                ])
             return{"response": "new user successfully created"}
+    else:
+        return {"response": "such username already exists"}
 
 
 @app.post("/cart/pizza", tags=["Customer handlers"])
@@ -114,11 +117,11 @@ def finished_choosing(request: Request):
         making_cart_empty = conn.execute(delete(cart_table).where(cart_table.c.user_id == int(id)))
 
 
-    return {"response": "We started baking your pizzas", "your_orders_id": order_id}
+    return {"response": "We have received your order", "your_orders_id": order_id}
 
 
 @app.get("/orders/{id}", tags=["Customer handlers"])
-def check_orders_status(id: int):
+def check_orders_status_for_user_id(id: int):
     with engine.begin() as conn:
         a = conn.execute(select(orders_table.c.state).where(orders_table.c.users_id == int(id))) # todo maby change id of customer on id of order???
         return {"status_of_order":a.scalar()}
@@ -127,11 +130,25 @@ def check_orders_status(id: int):
 
 
 @app.get("/pizzamaster/receipt", tags=["Pizza-master actions"])
-def look_at_receipt_not_ready_yet():
-    pass
+def look_at_receipt(id:int):
+    with engine.begin() as conn:
+        a = conn.execute(select(receipt_table.c.ingredient).where(receipt_table.c.id == int(id))).scalar()
+        return {"receipt": a}
 
 
-@app.get("/pizzamaster/{id}", tags=["Pizza-master actions"])  # todo change status only of first position in orders and make couple statuses, not only ready(begin baking for ec)
+@app.get("/pizzamaster/baking/{id}", tags=["Pizza-master actions"])  # todo change status only of first position in orders and make couple statuses, not only ready(begin baking for ec)
+def change_order_status_on_baking(id: int):
+
+    with engine.begin() as conn:
+        a = conn.execute(update(orders_table).where(orders_table.c.id == int(id)).values(state = "Your order is baking"))
+        # baking = conn.execute(update(orders_table).where(orders_table.c.users_id == int(a)).values(state = "started baking"))
+        # b = conn.execute(select(orders_table.c.id).where(orders_table.c.users_id == int(a)))
+        # cart_ins_p_key = cart_ins.inserted_primary_key[0]
+        # res_sel = conn.execute(select(receipt_table.c.id).where(receipt_table.c.))
+    return{"status": "status changed"}
+
+
+@app.get("/pizzamaster/ready/{id}", tags=["Pizza-master actions"])  # todo change status only of first position in orders and make couple statuses, not only ready(begin baking for ec)
 def change_order_status_on_ready(id: int):
 
     with engine.begin() as conn:
@@ -146,6 +163,6 @@ def change_order_status_on_ready(id: int):
 @app.get("/pizzamaster/taken/{id}", tags=["Pizza-master actions"])
 def customer_have_taken_order(id:int):
     with engine.begin() as conn:
-        a = conn.execute(delete(orders_table).where(orders_table.c.id == int(id)))
+        a = conn.execute(update(orders_table).where(orders_table.c.id == int(id)).values(state = "order was taken"))
     return {"response":"order was taken"}
 

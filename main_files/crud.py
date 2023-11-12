@@ -3,7 +3,7 @@ from fastapi import Depends, HTTPException, status, Body, Request
 from jose import JWTError, jwt
 from typing_extensions import Annotated
 from typing import Union
-from sqlalchemy import select
+from sqlalchemy import select, exists
 
 from schemas import PizzaConstr, UserInDB, TokenData
 from models import user_table, base_pizzas_table, ingred_table
@@ -48,10 +48,20 @@ def get_user(username: str):  # todo add exception while wrong credentials ...
 def check_for_username_existence(username: str):
     with engine.begin() as conn:
         a = conn.execute(select(user_table).where(user_table.c.username == username))
-        if a.one():
-            return True
-        else:
-            return False
+        return a.scalar()
+        # if a.scalar():
+        #     return True
+        # else:
+        #     return False
+        # a = select(user_table).where(user_table.c.username == username).exists()
+        # print("0000000000000000000000", a.__dict__)
+        # if a:
+        #     return True
+        # else:
+        #     return False
+
+
+
 
 
 def authenticate_user(username: str, password: str):

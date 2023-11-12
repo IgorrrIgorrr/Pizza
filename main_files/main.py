@@ -109,12 +109,12 @@ def finished_choosing(request: Request):
     #     ord_det_ins = conn.execute(insert(orders_detail_table).values(receipt_id = rec_p_key, orders_id = ord_p_key))
     #
     with engine.begin() as conn:
-        a = conn.execute(update(orders_table).where(and_(orders_table.c.user_id == id), (orders_table.c.state == "in process of choosing, not ordered yet")).values(state = "ordered"))
-        b = conn.execute(select(orders_table.c.id).where(and_(orders_table.c.user_id == id), (orders_table.c.state == "ordered"))).scalar()
+        a = conn.execute(update(orders_table).where(and_(orders_table.c.users_id == id, orders_table.c.state == "in process of choosing, not ordered yet")).values(state = "ordered"))
+        order_id = conn.execute(select(orders_table.c.id).where(and_(orders_table.c.users_id == id), (orders_table.c.state == "ordered"))).scalar()
         making_cart_empty = conn.execute(delete(cart_table).where(cart_table.c.user_id == int(id)))
 
 
-    return {"response": "We started baking your pizzas", "your_orders_id": b}
+    return {"response": "We started baking your pizzas", "your_orders_id": order_id}
 
 
 @app.get("/orders/{id}", tags=["Customer handlers"])

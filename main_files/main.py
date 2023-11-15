@@ -121,7 +121,7 @@ def look_at_receipt(id:int):
         return {"receipt": a}
 
 
-@app.get("/pizzamaster/baking/{id}", tags=["Pizza-master actions"])  # todo change status only of first position in orders and make couple statuses, not only ready(begin baking for ec)
+@app.post("/pizzamaster/baking/{id}", tags=["Pizza-master actions"])  # todo change status only of first position in orders and make couple statuses, not only ready(begin baking for ec)
 def change_order_status_on_baking(id: int):
 
     with engine.begin() as conn:
@@ -129,7 +129,7 @@ def change_order_status_on_baking(id: int):
     return{"status": "status changed"}
 
 
-@app.get("/pizzamaster/ready/{id}", tags=["Pizza-master actions"])  # todo change status only of first position in orders and make couple statuses, not only ready(begin baking for ec)
+@app.post("/pizzamaster/ready/{id}", tags=["Pizza-master actions"])  # todo change status only of first position in orders and make couple statuses, not only ready(begin baking for ec)
 def change_order_status_on_ready(id: int):
 
     with engine.begin() as conn:
@@ -137,7 +137,7 @@ def change_order_status_on_ready(id: int):
     return{"status": "status changed"}
 
 
-@app.get("/pizzamaster/taken/{id}", tags=["Pizza-master actions"])
+@app.post("/pizzamaster/taken/{id}", tags=["Pizza-master actions"])
 def customer_have_taken_order(id:int):
     with engine.begin() as conn:
         a = conn.execute(update(orders_table).where(orders_table.c.id == int(id)).values(state = "order was taken"))

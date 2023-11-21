@@ -47,7 +47,7 @@ async def read_users_me(
 
 @app.post("/registration", tags=["Customer handlers"]) # todo  add error if such user exists
 def registration(username: Annotated[str, Form()], full_name: Annotated[str, Form()], address: Annotated[str, Form()], telephone_number: Annotated[int, Form()], email:Annotated[str, Form()], plain_password:Annotated[str, Form()]):
-    print("iiiiiiiiiiiiiiiiiiiiiiiiiii", check_for_username_existence(username))
+    # print("iiiiiiiiiiiiiiiiiiiiiiiiiii", check_for_username_existence(username))
     if not check_for_username_existence(username):
         hashed_password = get_password_hash(plain_password)
         stmt_user = insert(user_table)

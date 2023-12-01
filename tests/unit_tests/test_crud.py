@@ -12,9 +12,10 @@ metadata_test = MetaData()
 
 for i in [user_table, base_pizzas_table, ingred_table, cart_table, receipt_table, orders_table, orders_detail_table]:
     i.metadata = metadata_test
-
-for i in [user_table, base_pizzas_table, ingred_table, cart_table, receipt_table, orders_table, orders_detail_table]:
     print(i.metadata)
+
+# for i in [user_table, base_pizzas_table, ingred_table, cart_table, receipt_table, orders_table, orders_detail_table]:
+#     print(i.metadata)
 
 
 
